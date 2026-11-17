@@ -88,6 +88,36 @@ def create_app(
             status_code=303,
         )
 
+    @app.get("/holdings", response_class=HTMLResponse)
+    def holdings(request: Request, cutoff: int | None = None):
+        """Point-in-time list of what the archive held at a capture record.
+
+        A capture record is a commit boundary: the selected record and
+        everything submitted before it, ordered by (created_at, id). The whole
+        page is built from one SQLite read snapshot, so a revision captured
+        by another window while this page is being viewed cannot change it.
+        """
+        snapshot = store.holdings_at(cutoff)
+        if snapshot is None:
+            return templates.TemplateResponse(
+                request,
+                "not_found.html",
+                {"number": "—", "error": "所选采集记录不存在。"},
+                status_code=404,
+            )
+        return templates.TemplateResponse(
+            request,
+            "holdings.html",
+            {
+                "cutoff": snapshot["cutoff"],
+                "entries": snapshot["entries"],
+                "selectable": snapshot["selectable"],
+                "selected_id": (
+                    snapshot["cutoff"]["id"] if snapshot["cutoff"] else None
+                ),
+            },
+        )
+
     @app.get("/notice/{number}", response_class=HTMLResponse)
     def notice(request: Request, number: str):
         versions = store.list_versions(number)
@@ -99,6 +129,15 @@ def create_app(
                 status_code=404,
             )
         status = request.query_params.get("status")
+        events = store.events_for(number)
+        holdings_cutoff = next(
+            (
+                e["id"]
+                for e in events
+                if e["outcome"] in ("created", "retracted_update")
+            ),
+            None,
+        )
         return templates.TemplateResponse(
             request,
             "notice.html",
@@ -108,7 +147,8 @@ def create_app(
                 "latest": versions[0],
                 "status": status,
                 "status_message": _STATUS_MESSAGES.get(status),
-                "events": store.events_for(number),
+                "events": events,
+                "holdings_cutoff": holdings_cutoff,
                 "error": request.query_params.get("error"),
                 "announcement": store.get_announcement(number),
             },

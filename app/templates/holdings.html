@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}当时持有清单 · 公告档案{% endblock %}
+{% block content %}
+<h1>当时持有清单</h1>
+<p class="meta">
+  以一条采集记录为截点，还原档案在该次提交完成时持有的每则公告最高修订、
+  当时的撤稿状态与该版原件入口。同一秒内的操作按提交先后（记录号）裁定；
+  失败采集不改变清单。
+</p>
+
+<div class="card">
+  <h2 style="margin-top:0">选择截点</h2>
+  <form method="get" action="/holdings" class="inline-form">
+    <select name="cutoff" id="cutoff" style="max-width:520px;padding:9px 11px;
+            font:inherit;border:1px solid var(--line);border-radius:6px;background:#fff">
+      {% for e in selectable %}
+      <option value="{{ e.id }}" {% if e.id == selected_id %}selected{% endif %}>
+        #{{ e.id }} · {{ e.created_at|ts }} ·
+        {{ e.announcement_number or "—" }} · {{ e.outcome }}
+        {%- if e.revision %} · r{{ e.revision }}{% endif %}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit">按此截点查看</button>
+  </form>
+  {% if not selectable %}
+  <p class="empty">尚无采集记录，无法选择截点。</p>
+  {% endif %}
+
+  {% if cutoff %}
+  <dl class="kv" style="margin-top:14px">
+    <dt>本页截点</dt>
+    <dd>记录 #{{ cutoff.id }} · {{ cutoff.created_at|ts }}</dd>
+    <dt>截点公告</dt>
+    <dd>{{ cutoff.announcement_number or "—" }}</dd>
+    <dt>该次采集结果</dt>
+    <dd>{{ cutoff.outcome }}{% if cutoff.revision %} · r{{ cutoff.revision }}{% endif %}</dd>
+    <dt>说明</dt>
+    <dd class="meta">{{ cutoff.detail }}</dd>
+  </dl>
+  <p class="meta">
+    本页只包含记录 #{{ cutoff.id }} 及此前已提交的采集；之后采入的新版本不会
+    出现在本页。整页由同一个数据库读取快照生成。
+  </p>
+  {% endif %}
+</div>
+
+{% if cutoff %}
+<h2>截至该截点持有的公告</h2>
+{% if entries %}
+<div class="card" style="padding:4px 10px">
+<table>
+  <thead>
+    <tr>
+      <th>公告号</th><th>当时最高修订</th><th>当时撤稿状态</th>
+      <th>标题（该版）</th><th>该版原件入口</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for entry in entries %}
+    <tr>
+      <td>{{ entry.number }}</td>
+      <td>
+        {% if entry.title is not none %}
+          r{{ entry.revision }}
+        {% else %}
+          r{{ entry.revision }} <span class="pill conflict">版本行缺失</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if not entry.retraction_known %}
+          <span class="pill conflict">无法判定</span>
+          <span class="meta">旧记录缺少可判定的撤稿状态，未套用当前标记</span>
+        {% elif entry.retracted %}
+          <span class="pill retracted">当时已撤稿</span>
+        {% else %}
+          <span class="pill current">当时在发</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if entry.title is not none %}
+          {{ entry.title }}
+          <span class="meta">· 采集于 {{ entry.captured_at|ts }}</span>
+        {% else %}
+          <span class="meta">该版本已不可读取</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if entry.title is not none %}
+          <a href="/notice/{{ entry.number|urlencode }}/version/{{ entry.revision }}">查看 r{{ entry.revision }} 正文</a>
+          ·
+          <a href="/notice/{{ entry.number|urlencode }}/version/{{ entry.revision }}/attachment">下载该版附件</a>
+        {% else %}
+          <span class="meta">—</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="empty">截至该截点，档案尚未持有任何公告版本。</p>
+{% endif %}
+{% endif %}
+
+<p class="meta"><a href="/">返回档案首页</a></p>
+{% endblock %}

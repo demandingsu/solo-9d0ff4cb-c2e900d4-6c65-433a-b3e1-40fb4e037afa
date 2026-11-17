@@ -142,14 +142,18 @@ class CaptureService:
                         "source_hash": record.content_hash,
                     },
                 )
+            message = (
+                f"修订 r{snapshot.revision} 已被并发采集存档且内容一致，"
+                "本次未重复建版。"
+            )
+            self.store.touch_checked(
+                snapshot.number, "unchanged", message, snapshot.revision
+            )
             return CaptureResult(
                 status="unchanged",
                 number=snapshot.number,
                 revision=snapshot.revision,
-                message=(
-                    f"修订 r{snapshot.revision} 已被并发采集存档且内容一致，"
-                    "本次未重复建版。"
-                ),
+                message=message,
             )
         if snapshot.retracted:
             message = (

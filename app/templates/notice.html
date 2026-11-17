@@ -12,6 +12,11 @@
     <span class="pill retracted">源站已撤稿</span>
     旧版仍可下载。
   {% endif %}
+  {% if holdings_cutoff %}
+  · <a href="/holdings?cutoff={{ holdings_cutoff }}">查看当时持有清单</a>
+  {% else %}
+  · <a href="/holdings">查看当时持有清单</a>
+  {% endif %}
 </p>
 
 <div class="two-col">
